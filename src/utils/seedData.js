@@ -1,0 +1,1 @@
+// this will be a function that will seed the database with some initial data of the admin user

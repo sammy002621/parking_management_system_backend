@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String
+  email         String        @unique
+  password      String
+  role          UserRole      @default(USER)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  vehicles      Vehicle[]
+  slotRequests  SlotRequest[]
+  actionLogs    ActionLog[]
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model Vehicle {
+  id              String        @id @default(cuid())
+  plateNumber     String        @unique
+  vehicleType     String // e.g., "car", "motorcycle", "truck"
+  size            String // e.g., "small", "medium", "large"
+  otherAttributes Json? // For color, model, etc.
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  owner           User          @relation(fields: [userId], references: [id])
+  userId          String
+  slotRequests    SlotRequest[]
+
+  @@index([userId])
+}
+
+model ParkingSlot {
+  id           String        @id @default(cuid())
+  slotNumber   String        @unique
+  size         String // e.g., "small", "medium", "large"
+  vehicleType  String // Compatible vehicle type e.g., "car", "any"
+  status       SlotStatus    @default(AVAILABLE)
+  location     String // e.g., "A1", "Section B, Row 3"
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  slotRequests SlotRequest[]
+}
+
+enum SlotStatus {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+model SlotRequest {
+  id                 String        @id @default(cuid())
+  requestStatus      RequestStatus @default(PENDING)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  approvedAt         DateTime?
+  assignedSlotNumber String? // Denormalized for easy display/email, or can be derived via slotId
+
+  user               User          @relation(fields: [userId], references: [id])
+  userId             String
+  vehicle            Vehicle       @relation(fields: [vehicleId], references: [id])
+  vehicleId          String
+  slot               ParkingSlot?  @relation(fields: [slotId], references: [id]) // Nullable until approved
+  slotId             String?       // Nullable until approved
+
+  @@index([userId])
+  @@index([vehicleId])
+  @@index([slotId])
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED // User can cancel
+}
+
+model ActionLog {
+  id        String   @id @default(cuid())
+  action    String // e.g., "USER_REGISTERED", "VEHICLE_ADDED", "SLOT_REQUEST_APPROVED"
+  details   Json?    // Optional: store related IDs or brief descriptions
+  timestamp DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id]) // Nullable if system action
+  userId    String?
+
+  @@index([userId])
+}
